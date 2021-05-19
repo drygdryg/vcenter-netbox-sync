@@ -28,7 +28,7 @@ The following objects are tracked and synced between vCenter and NetBox. Object 
 The following minimum software versions have been tested for compatibility.
 
 * VMware vCenter 6
-* NetBox v2.6.7
+* NetBox v2.11
 
 The following permissions are required for this script to function.
 * VMware vCenter - User account with "Read-only" role on vCenter root scope. The "Propogate to children" setting must also be checked.
