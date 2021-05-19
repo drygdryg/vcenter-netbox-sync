@@ -32,7 +32,7 @@ TRACK_VM_HOST = False
 VC_HOSTS = [
     # You can add more vCenter instances by duplicating the line below
     {"HOST": "vcenter1.example.com", "PORT": 443, "USER": "", "PASS": ""},
-    ]
+]
 
 
 # NetBox Settings
@@ -47,6 +47,8 @@ NB_INSECURE_TLS = False
 # NetBox port to connect to
 NB_PORT = 443
 # Automatically orphan and delete objects if they are no longer in their source system
-NB_PRUNE_ENABLED = True
+NB_PRUNE_ENABLED = False
 # How many days should to wait before pruning an orphaned object
 NB_PRUNE_DELAY_DAYS = 0
+# Name of the site to add devices to it
+NB_DEVICE_SITE = "vCenter"

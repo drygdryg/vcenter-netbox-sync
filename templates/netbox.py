@@ -1,35 +1,33 @@
 #!/usr/bin/env python3
 """A collection of NetBox object templates"""
+from typing import Optional, Tuple, Union, List
 
 
-def remove_empty_fields(obj):
+def remove_empty_fields(obj: dict) -> dict:
     """
     Removes empty fields from NetBox objects.
 
     This ensures NetBox objects do not return invalid None values in fields.
     :param obj: A NetBox formatted object
-    :type obj: dict
     """
     return {k: v for k, v in obj.items() if v is not None}
 
 
-def format_slug(text):
+def format_slug(text: str) -> str:
     """
     Format string to comply to NetBox slug acceptable pattern and max length.
 
     :param text: Text to be formatted into an acceptable slug
-    :type text: str
     :return: Slug of allowed characters [-a-zA-Z0-9_] with max length of 50
-    :rtype: str
     """
     allowed_chars = (
-        "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ" # Alphabet
-        "0123456789" # Numbers
-        "_-" # Symbols
+        "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"  # Alphabet
+        "0123456789"  # Numbers
+        "_-"  # Symbols
         )
-    # Replace seperators with dash
-    seperators = [" ", ",", "."]
-    for sep in seperators:
+    # Replace separators with dash
+    separators = [" ", ",", "."]
+    for sep in separators:
         text = text.replace(sep, "-")
     # Strip unacceptable characters
     text = "".join([c for c in text if c in allowed_chars])
@@ -37,44 +35,48 @@ def format_slug(text):
     return truncate(text, max_len=50).lower()
 
 
-def truncate(text="", max_len=50):
+def parse_version_tuple(v: Union[str, float]) -> Tuple[int]:
+    """
+    Parses version number to compare versions
+
+    :param v: Version number; example: '2.10.3'
+    """
+    return tuple(map(int, (str(v).split("."))))
+
+
+def truncate(text: str = "", max_len: int = 50):
     """Ensure a string complies to the maximum length specified."""
     return text if len(text) < max_len else text[:max_len]
 
 
 class Templates:
     """NetBox object templates"""
-    def __init__(self, api_version):
+    def __init__(self, api_version: float):
         """
         Required parameters for the NetBox class
 
         :param api_version: NetBox API version objects must be formatted to
-        :type api_version: float
         """
         self.api_version = api_version
 
-    def cluster(self, name, ctype, group=None, tags=None):
+    def cluster(self, name: str, cluster_type: str, group: Optional[str] = None, tags: Optional[List[dict]] = None):
         """
         Template for NetBox clusters at /virtualization/clusters/
 
         :param name: Name of the cluster group
-        :type name: str
-        :param ctype: Name of NetBox cluster type object
-        :type ctype: str
+        :param cluster_type: Name of NetBox cluster type object
         :param group: Name of NetBox cluster group object
-        :type group: str, optional
         :param tags: Tags to apply to the object
-        :type tags: list, optional
         """
         obj = {
             "name": truncate(name, max_len=100),
-            "type": {"name": ctype},
+            "type": {"name": cluster_type},
             "group": {"name": truncate(group, max_len=50)} if group else None,
             "tags": tags,
             }
         return remove_empty_fields(obj)
 
-    def cluster_group(self, name, slug=None):
+    def cluster_group(self, name, slug=None) -> dict:
         """
         Template for NetBox cluster groups at /virtualization/cluster-groups/
 
@@ -89,34 +91,24 @@ class Templates:
             }
         return remove_empty_fields(obj)
 
-    def device(self, name, device_role, device_type, display_name=None,
-               platform=None, site=None, serial=None, asset_tag=None,
-               cluster=None, status=None, tags=None):
+    def device(self, name: str, device_role: str, device_type: str, display_name: Optional[str] = None,
+               platform: Optional[str] = None, site: Optional[str] = None, serial: Optional[str] = None,
+               asset_tag: Optional[str] = None, cluster: Optional[str] = None, status: int = None,
+               tags: Optional[List[dict]] = None) -> dict:
         """
         Template for NetBox devices at /dcim/devices/
 
         :param name: Hostname of the device
-        :type name: str
         :param device_role: Name of device role
-        :type device_role: str
         :param device_type: Model name of device type
-        :type device_type: str
         :param display_name: Friendly name for device
-        :type display_name: str, opt
         :param platform: Platform running on the device
-        :type platform: str, opt
         :param site: Site where the device resides
-        :type site: str, opt
         :param serial: Serial number of the device
-        :type serial: str, opt
         :param asset_tag: Asset tag of the device
-        :type asset_tag: str, opt
         :param cluster: Cluster the device belongs to
-        :type cluster: str, opt
         :param status: NetBox IP address status in NB API v2.6 format
-        :type status: int
         :param tags: Tags to apply to the object
-        :type tags: list, optional
         """
         obj = {
             "name": name,
@@ -139,39 +131,27 @@ class Templates:
             }
         return remove_empty_fields(obj)
 
-    def device_interface(self, device, name, itype=None, enabled=None, mtu=None,
-                         mac_address=None, mgmt_only=None, description=None,
-                         cable=None, mode=None, untagged_vlan=None,
-                         tagged_vlans=None, tags=None):
+    def device_interface(self, device: str, name: str, iftype: Optional[int] = None, enabled: Optional[bool] = None,
+                         mtu: Optional[int] = None, mac_address: Optional[str] = None, mgmt_only: Optional[bool] = None,
+                         description: Optional[str] = None, cable: Optional[int] = None, mode: Optional[int] = None,
+                         untagged_vlan: Optional[int] = None, tagged_vlans: Optional[str] = None,
+                         tags: Optional[List[dict]] = None) -> dict:
         """
         Template for NetBox device interfaces at /dcim/interfaces/
 
         :param device: Name of parent device the interface belongs to
-        :type device: str
         :param name: Name of the physical interface
-        :type name: str
-        :param itype: Type of interface `0` if Virtual else `32767` for Other
-        :type itype: str, optional
+        :param iftype: Type of interface `0` if Virtual else `32767` for Other
         :param enabled: `True` if the interface is up else `False`
-        :type enabled: bool,optional
         :param mtu: The configured MTU for the interface
-        :type mtu: int,optional
         :param mac_address: The MAC address of the interface
-        :type mac_address: str, optional
         :param mgmt_only: `True` if interface is only for out of band else `False`
-        :type mgmt_only: bool, optional
         :param description: Description for the interface
-        :type description: str, optional
         :param cable: NetBox cable object ID of the interface is attached to
-        :type cable: int, optional
         :param mode: `100` if access, `200` if tagged, or `300 if` tagged for all vlans
-        :type mode: int, optional
         :param untagged_vlan: NetBox VLAN object id of untagged vlan
-        :type untagged_vlan: int, optional
         :param tagged_vlans: List of NetBox VLAN object ids for tagged VLANs
-        :type tagged_vlans: str, optional
         :param tags: Tags to apply to the object
-        :type tags: list, optional
         """
         obj = {
             "device": {"name": device},
@@ -179,8 +159,8 @@ class Templates:
             "type": self._version_dependent(
                 nb_obj_type="interfaces",
                 key="type",
-                value=itype
-                ) if itype else None,
+                value=iftype
+                ) if (iftype is not None) else None,
             "enabled": enabled,
             "mtu": mtu,
             "mac_address": mac_address.upper() if mac_address else None,
@@ -194,21 +174,16 @@ class Templates:
             }
         return remove_empty_fields(obj)
 
-    def device_type(self, manufacturer, model, slug=None, part_number=None,
-                    tags=None):
+    def device_type(self, manufacturer: str, model: str, slug: Optional[str] = None, part_number: Optional[str] = None,
+                    tags: Optional[List[dict]] = None) -> dict:
         """
         Template for NetBox device types at /dcim/device-types/
 
         :param manufacturer: Name of NetBox manufacturer object
-        :type manufacturer: str
         :param model: Name of NetBox model object
-        :type model: str
         :param slug: Unique slug for manufacturer.
-        :type slug: str, optional
         :param part_number: Unique partner number for the device
-        :type part_number: str, optional
         :param tags: Tags to apply to the object
-        :type tags: list, optional
         """
         obj = {
             "manufacturer": {"name": manufacturer},
@@ -221,32 +196,23 @@ class Templates:
             }
         return remove_empty_fields(obj)
 
-    def ip_address(self, address, description=None, device=None, dns_name=None,
-                   interface=None, status=1, tags=None, tenant=None,
-                   virtual_machine=None, vrf=None):
+    def ip_address(self, address: str, description: Optional[str] = None, device: Optional[str] = None,
+                   dns_name: Optional[str] = None, interface: Optional[str] = None, status: int = 1,
+                   tags: Optional[List[dict]] = None, tenant: Optional[str] = None, virtual_machine: Optional[str] = None,
+                   vrf: Optional[str] = None) -> dict:
         """
         Template for NetBox IP addresses at /ipam/ip-addresses/
 
         :param address: IP address
-        :type address: str
         :param description: A description of the IP address purpose
-        :type description: str, optional
         :param device: The device which the IP and its interface are attached to
-        :type device: str, optional
         :param dns_name: FQDN pointed to the IP address
-        :type dns_name: str, optional
         :param interface: Name of the parent interface IP is configured on
-        :type interface: str, optional
         :param status: `1` if active, `0` if deprecated
-        :type status: int
         :param tags: Tags to apply to the object
-        :type tags: list, optional
         :param tenant: The tenant the IP address belongs to
-        :type tenant: str, optional
         :param virtual_machine: Name of the NetBox VM object the IP is configured on
-        :type virtual_machine: str, optional
         :param vrf: Virtual Routing and Forwarding instance for the IP
-        :type vrf: str, optional
         """
         # Validate user did not try to provide a parent device and VM
         if bool(device and virtual_machine):
@@ -268,28 +234,21 @@ class Templates:
             "vrf": vrf
             }
         if interface and bool(device or virtual_machine):
-            obj["interface"] = {"name": interface}
+            obj["assigned_object"] = {"name": interface}
             if device:
-                obj["interface"] = {
-                    **obj["interface"], **{"device": {"name": device}}
-                    }
+                obj["assigned_object_type"] = "dcim.interface"
+                obj["assigned_object"].update({"device": {"name": device}})
             elif virtual_machine:
-                obj["interface"] = {
-                    **obj["interface"],
-                    **{"virtual_machine": {
-                        "name": truncate(virtual_machine, max_len=64)
-                        }}
-                    }
+                obj["assigned_object_type"] = "virtualization.vminterface"
+                obj["assigned_object"].update({"virtual_machine": {"name": truncate(virtual_machine, max_len=64)}})
         return remove_empty_fields(obj)
 
-    def manufacturer(self, name, slug=None):
+    def manufacturer(self, name: str, slug: Optional[str] = None):
         """
         Template for NetBox manufacturers at /dcim/manufacturers
 
         :param name: Name of the manufacturer
-        :type name: str
         :param slug: Unique slug for manufacturer.
-        :type slug: str, optional
         """
         obj = {
             "name": truncate(name, max_len=50),
@@ -297,7 +256,7 @@ class Templates:
             }
         return remove_empty_fields(obj)
 
-    def _version_dependent(self, nb_obj_type, key, value):
+    def _version_dependent(self, nb_obj_type: str, key: str, value) -> str:
         """
         Formats object values depending on the NetBox API version.
 
@@ -306,12 +265,9 @@ class Templates:
         to return integers or named strings.
 
         :param nb_obj_type: NetBox object type, must match keys in self.obj_map
-        :type nb_obj_type: str
         :param key: The dictionary key to check against
-        :type key: str
         :param value: Value to the provided key in NetBox 2.6 or less format
         :return: NetBox API version safe value
-        :rtype: str
         """
         obj_map = {
             "circuits": {
@@ -392,47 +348,34 @@ class Templates:
             }}
         # isinstance is used as a safety check. If a string is passed we'll
         # assume someone passed a value for API v2.7 and return the result.
-        if isinstance(value, int) and self.api_version > 2.6:
+        if isinstance(value, int) and parse_version_tuple(self.api_version) > parse_version_tuple(2.6):
             result = obj_map[nb_obj_type][key][value]
         else:
             result = value
         return result
 
-    def virtual_machine(self, name, cluster, status=None, role=None,
-                        tenant=None, platform=None, primary_ip4=None,
-                        primary_ip6=None, vcpus=None, memory=None, disk=None,
-                        comments=None, local_context_data=None, tags=None):
+    def virtual_machine(self, name: str, cluster: str, status: Optional[int] = None, role: Optional[str] = None,
+                        tenant: Optional[str] = None, platform: Optional[str] = None, primary_ip4: Optional[int] = None,
+                        primary_ip6: Optional[int] = None, vcpus: Optional[int] = None, memory: Optional[int] = None,
+                        disk: Optional[int] = None, comments: Optional[str] = None,
+                        local_context_data: Optional[dict] = None, tags: Optional[List[dict]] = None) -> dict:
         """
         Template for NetBox virtual machines at /virtualization/virtual-machines/
 
         :param name: Name of the virtual machine
-        :type name: str
         :param cluster: Name of the cluster the virtual machine resides on
-        :type cluster: str
         :param status: `0` if offline, `1` if active, `3` if staged
-        :type status: int, optional
         :param role: Name of NetBox role object
-        :type role: str, optional
         :param tenant: Name of NetBox tenant object
-        :type tenant: str, optional
         :param platform: Name of NetBox platform object
-        :type platform: str, optional
         :param primary_ip4: NetBox IP address object ID
-        :type primary_ip4: int, optional
         :param primary_ip6: NetBox IP address object ID
-        :type primary_ip6: int, optional
         :param vcpus: Quantity of virtual CPUs assigned to VM
-        :type vcpus: int, optional
         :param memory: Quantity of RAM assigned to VM in MB
-        :type memory: int, optional
         :param disk: Quantity of disk space assigned to VM in GB
-        :type disk: str, optional
         :param comments: Comments regarding the VM
-        :type comments: str, optional
         :param local_context_data: Additional context data regarding the VM
-        :type local_context_data: dict, optional
         :param tags: Tags to apply to the object
-        :type tags: list, optional
         """
         obj = {
             "name": name,
@@ -447,7 +390,7 @@ class Templates:
             "platform": platform,
             "primary_ip4": primary_ip4,
             "primary_ip6": primary_ip6,
-            "vcpus": vcpus,
+            "vcpus": float(vcpus),
             "memory": memory,
             "disk": disk,
             "comments": comments,
@@ -456,43 +399,28 @@ class Templates:
             }
         return remove_empty_fields(obj)
 
-    def vm_interface(self, virtual_machine, name, itype=0, enabled=None,
-                     mtu=None, mac_address=None, description=None, mode=None,
-                     untagged_vlan=None, tagged_vlans=None, tags=None):
+    def vm_interface(self, virtual_machine: str, name: str, iftype: Optional[int] = 0, enabled: Optional[bool] = None,
+                     mtu: Optional[int] = None, mac_address: Optional[str] = None, description: Optional[str] = None,
+                     mode: Optional[int] = None, untagged_vlan: Optional[int] = None, tagged_vlans: Optional[str] = None,
+                     tags: Optional[List[dict]] = None) -> dict:
         """
         Template for NetBox virtual machine interfaces at /virtualization/interfaces/
 
         :param virtual_machine: Name of parent virtual machine the interface belongs to
-        :type virtual_machine: str
         :param name: Name of the physical interface
-        :type name: str
-        :param itype: Type of interface `0` if Virtual else `32767` for Other
-        :type itype: str, optional
+        :param iftype: Type of interface `0` if Virtual else `32767` for Other
         :param enabled: `True` if the interface is up else `False`
-        :type enabled: bool,optional
         :param mtu: The configured MTU for the interface
-        :type mtu: int,optional
         :param mac_address: The MAC address of the interface
-        :type mac_address: str, optional
         :param description: Description for the interface
-        :itype description: str, optional
         :param mode: `100` if access, `200` if tagged, or `300 if` tagged for all vlans
-        :itype mode: int, optional
         :param untagged_vlan: NetBox VLAN object id of untagged vlan
-        :type untagged_vlan: int, optional
         :param tagged_vlans: List of NetBox VLAN object ids for tagged VLANs
-        :type tagged_vlans: str, optional
         :param tags: Tags to apply to the object
-        :type tags: list, optional
         """
         obj = {
             "virtual_machine": {"name": truncate(virtual_machine, max_len=64)},
             "name": name,
-            "itype": self._version_dependent(
-                nb_obj_type="interfaces",
-                key="type",
-                value=itype
-                ),
             "enabled": enabled,
             "mtu": mtu,
             "mac_address": mac_address.upper() if mac_address else None,

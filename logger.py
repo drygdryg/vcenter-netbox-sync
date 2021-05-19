@@ -9,7 +9,7 @@ import settings
 # Logging configuration
 log = logging.getLogger(__name__)
 log.setLevel(getattr(logging, settings.LOG_LEVEL.upper()))
-log_format = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
+log_format = logging.Formatter("%(asctime)s {%(pathname)s:%(lineno)d} [%(levelname)s] %(message)s")
 if settings.LOG_FILE:
     # Ensures logs are written to the project folder even if the script is
     # executed from another directory
