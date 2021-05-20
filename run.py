@@ -686,7 +686,7 @@ class VcenterHandler:
                     if vm_family:
                         for index, nic in enumerate(obj.guest.net):
                             # Interfaces
-                            nic_name = f"vmk{index}"
+                            nic_name = f"vNIC{index}"
                             log.debug(
                                 "Collecting info for virtual interface '%s'.",
                                 nic_name
