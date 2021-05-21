@@ -143,7 +143,7 @@ def format_tag(tag: str) -> dict:
     try:
         ip_network(tag)
     except ValueError:
-        # If an IP was not provided then assume fqdn
+        # If an IP was not provided then assume FQDN
         tag = tag.split(".")[0]
         tag = truncate(tag, max_len=100)
     return {"name": tag}
