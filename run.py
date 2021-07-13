@@ -74,7 +74,7 @@ def compare_dicts(dict1: dict, dict2: dict, dict1_name: str = "d1", dict2_name: 
             if dict1[key] != int(float(dict2[key])):
                 log.debug(
                     "Mismatch: %s value is '%s' while %s value is '%s'.",
-                    dict1_path, dict1[key], dict2_path, dict2[key]["value"]
+                    dict1_path, dict1[key], dict2_path, dict2[key]
                 )
                 result = False
         elif dict1[key] != dict2[key]:
