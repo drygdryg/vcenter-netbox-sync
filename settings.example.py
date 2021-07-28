@@ -50,5 +50,5 @@ NB_PORT = 443
 NB_PRUNE_ENABLED = False
 # How many days should to wait before pruning an orphaned object
 NB_PRUNE_DELAY_DAYS = 0
-# Name of the site to add devices to it
-NB_DEVICE_SITE = "vCenter"
+# A default virtual site created to house objects that have been synced from vCenter
+NB_SITE = "vCenter"
