@@ -480,7 +480,10 @@ class VcenterHandler:
                     obj_manuf_name = truncate(
                         obj.summary.hardware.vendor, max_len=50
                     )
-                    obj_model = truncate(obj.summary.hardware.model, max_len=50)
+                    if obj.summary.hardware.model:
+                        obj_model = truncate(obj.summary.hardware.model, max_len=50)
+                    else:
+                        obj_model = 'unknown'
                     # NetBox Manufacturers and Device Types are susceptible to
                     # duplication as they are parents to multiple objects
                     # To avoid unnecessary querying we check to make sure they
@@ -656,9 +659,12 @@ class VcenterHandler:
                     # Platform
                     vm_family = obj.guest.guestFamily
                     platform = None
-                    cluster = truncate(
-                        obj.runtime.host.parent.name, max_len=100
-                    )
+
+                    if type(obj.runtime.host.parent) == vim.ClusterComputeResource:
+                        cluster = truncate(obj.runtime.host.parent.name, max_len=100)
+                    else:
+                        cluster = 'Unclustered'
+
                     if vm_family is not None:
                         if "linux" in vm_family:
                             platform = {"name": "Linux"}
@@ -683,7 +689,7 @@ class VcenterHandler:
                     ))
                     # If VMware Tools is not detected then we cannot reliably
                     # collect interfaces and IP addresses
-                    if vm_family:
+                    if obj.guest.toolsRunningStatus == 'guestToolsRunning':
                         for index, nic in enumerate(obj.guest.net):
                             # Interfaces
                             nic_name = f"vNIC{index}"
@@ -694,7 +700,6 @@ class VcenterHandler:
                             results["virtual_interfaces"].append(
                                 nbt.vm_interface(
                                     virtual_machine=obj_name,
-                                    iftype=0,
                                     name=nic_name,
                                     mac_address=nic.macAddress,
                                     enabled=nic.connected,
@@ -889,7 +894,7 @@ class NetBoxHandler:
         )
         req = self.request(
             req_type="get", nb_obj_type="ip_addresses",
-            query="?{}={}".format(query_key, nb_id)
+            params={query_key: nb_id}
         )
         log.debug("Found %s child IP addresses.", req["count"])
         if req["count"] > 0:
@@ -906,26 +911,27 @@ class NetBoxHandler:
         return result
 
     def request(self, req_type: str, nb_obj_type: str, data: Optional[dict] = None,
-                query: Optional[str] = None, nb_id: Optional[int] = None) -> dict:
+                params: Optional[dict] = None, nb_id: Optional[int] = None) -> dict:
         """
         HTTP requests and exception handler for NetBox
 
         :param req_type: HTTP method type (GET, POST, PUT, PATCH, DELETE)
         :param nb_obj_type: NetBox object type, must match keys in self.obj_map
         :param data: NetBox object key value pairs
-        :param query: Filter for GET method requests
+        :param params: query string parameters for GET method requests
         :param nb_id: NetBox Object ID used when modifying an existing object
-        :return: Netbox objects and their corresponding data
+        :return: NetBox objects and their corresponding data
         """
         result = None
         # Generate URL
-        url = "{}{}/{}/{}{}".format(
+        url = "{}{}/{}/".format(
             self.nb_api_url,
             self.obj_map[nb_obj_type]["api_app"],  # App that model falls under
             self.obj_map[nb_obj_type]["api_model"],  # Data model
-            query if query else "",
-            "{}/".format(nb_id) if nb_id else ""
         )
+        if nb_id:
+            url += f"{nb_id}/"
+
         log.debug(
             "Sending %s to '%s' with data '%s'.", req_type.upper(), url, data
         )
@@ -934,7 +940,7 @@ class NetBoxHandler:
                 manufacturer = self.request("get", "manufacturers", data={"name": data["manufacturer"]["name"]})
                 data["manufacturer"] = manufacturer["results"][0]["id"]
         req = getattr(self.nb_session, req_type)(
-            url, json=data, timeout=10, verify=(not settings.NB_INSECURE_TLS)
+            url, params=params, json=data, timeout=10, verify=(not settings.NB_INSECURE_TLS)
         )
         # Parse status
         log.debug("Received HTTP Status %s.", req.status_code)
@@ -1017,13 +1023,13 @@ class NetBoxHandler:
             q_device = vc_data["assigned_object"]["device"]["name"]
             res = self.request(
                 "get", "interfaces",
-                query=f'?device={q_device}&name={q_interface}'
+                params={'device': q_device, 'name': q_interface}
             )
         elif vc_data["assigned_object_type"] == "virtualization.vminterface":
             q_device = vc_data["assigned_object"]["virtual_machine"]["name"]
             res = self.request(
                 "get", "virtual_interfaces",
-                query=f'?virtual_machine={q_device}&name={q_interface}'
+                params={'virtual_machine': q_device, 'name': q_interface}
             )
         if res:
             if res["count"] != 0:
@@ -1046,19 +1052,14 @@ class NetBoxHandler:
         # Create a query specific to the device parent/child relationship when
         # working with interfaces
         if nb_obj_type == "interfaces":
-            query = "?device={}&{}={}".format(
-                vc_data["device"]["name"], query_key, vc_data[query_key]
-            )
+            params = {'device': vc_data["device"]["name"], query_key: vc_data[query_key]}
         elif nb_obj_type == "virtual_interfaces":
-            query = "?virtual_machine={}&{}={}".format(
-                vc_data["virtual_machine"]["name"], query_key,
-                vc_data[query_key]
-            )
+            params = {'virtual_machine': vc_data["virtual_machine"]["name"], query_key: vc_data[query_key]}
         else:
-            query = "?{}={}".format(query_key, vc_data[query_key])
+            params = {query_key: vc_data[query_key]}
         req = self.request(
             req_type="get", nb_obj_type=nb_obj_type,
-            query=query
+            params=params
         )
         # A single matching object is found so we compare its values to the new
         # object
@@ -1171,7 +1172,7 @@ class NetBoxHandler:
             # Collect all parent objects that support Primary IPs
             parents = self.request(
                 req_type="get", nb_obj_type=nb_obj_type,
-                query="?tag={}".format(format_slug(self.vc_tag["name"]))
+                params={'tag': format_slug(self.vc_tag["name"])}
             )
             log.info("Collected %s NetBox objects.", parents["count"])
             for nb_obj in parents["results"]:
@@ -1236,7 +1237,7 @@ class NetBoxHandler:
         # Grab all the IPs from NetBox related tagged from the vCenter host
         ip_objs = self.request(
             req_type="get", nb_obj_type="ip_addresses",
-            query="?tag={}".format(format_slug(self.vc_tag["name"]))
+            params={'tag': format_slug(self.vc_tag["name"])}
         )["results"]
         log.info("Collected %s NetBox IP address objects.", ip_objs)
         # We take the IP address objects and make a map of relevant details to
@@ -1282,16 +1283,16 @@ class NetBoxHandler:
         )
         vc_objects = self.vc.get_objects(vc_obj_type=vc_obj_type)
         # Determine each NetBox object type collected from vCenter
-        nb_obj_types = list(vc_objects.keys())
+        nb_obj_types = vc_objects.keys()
         for nb_obj_type in nb_obj_types:
             log.info(
-                "Starting sync of %s vCenter %s object%s to NetBox %s "
-                "object%s.",
-                len(vc_objects[nb_obj_type]),
-                vc_obj_type,
-                "s" if len(vc_objects[nb_obj_type]) != 1 else "",
-                nb_obj_type,
-                "s" if len(vc_objects[nb_obj_type]) != 1 else "",
+                "Starting sync of {count} vCenter {vc_obj_type} object{plural} to NetBox {nb_obj_type} "
+                "object{plural}.".format(
+                    count=len(vc_objects[nb_obj_type]),
+                    vc_obj_type=vc_obj_type,
+                    nb_obj_type=nb_obj_type,
+                    plural='s' if len(vc_objects[nb_obj_type]) != 1 else ''
+                )
             )
             for obj in vc_objects[nb_obj_type]:
                 # Check to ensure IP addresses pass all checks before syncing
@@ -1357,7 +1358,7 @@ class NetBoxHandler:
             nb_objects = self.request(
                 req_type="get", nb_obj_type=nb_obj_type,
                 # Tags need to always be searched by slug
-                query="?tag={}".format(format_slug(self.vc_tag["name"]))
+                params={'tag': format_slug(self.vc_tag["name"])}
             )["results"]
             # Certain vCenter object types map to multiple NetBox types. We
             # define the relationships to compare against for these situations.
@@ -1479,10 +1480,9 @@ class NetBoxHandler:
         :return: The VRF and tenant name of the prefix containing :param ip_addr:
         """
         result = {"tenant": None, "vrf": None}
-        query = "?contains={}".format(ip_addr)
         try:
             prefix_obj = self.request(
-                req_type="get", nb_obj_type="prefixes", query=query
+                req_type="get", nb_obj_type="prefixes", params={'contains': ip_addr}
             )["results"][-1]  # -1 used to choose the most specific result
             prefix = prefix_obj["prefix"]
             for key in result:
@@ -1528,6 +1528,9 @@ class NetBoxHandler:
             }],
             "cluster_types": [
                 {"name": "VMware ESXi", "slug": "vmware-esxi"}
+            ],
+            "clusters": [
+                {"name": 'Unclustered', "type": {"name": "VMware ESXi"}}
             ],
             "device_roles": [
                 {
@@ -1585,14 +1588,10 @@ class NetBoxHandler:
                 "Collecting all current NetBox %s objects to prepare for "
                 "deletion.", nb_obj_type
             )
-            query = "?tag={}".format(
-                # vCenter site is a global dependency so we change the query
-                "vcenter" if nb_obj_type == "sites"
-                else format_slug(self.vc_tag["name"])
-            )
+            params = {'tag': 'vcenter' if nb_obj_type == 'sites' else format_slug(self.vc_tag['name'])}
             nb_objects = self.request(
                 req_type="get", nb_obj_type=nb_obj_type,
-                query=query
+                params=params
             )["results"]
             query_key = self.obj_map[nb_obj_type]["key"]
             # NetBox virtual interfaces do not currently support filtering

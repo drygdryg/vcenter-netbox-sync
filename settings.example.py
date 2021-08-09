@@ -3,13 +3,13 @@
 # Program Settings
 # Valid options are debug, info, warning, error, critical
 LOG_LEVEL = "info"
- # Logs to console if True, disables console logging if False
+# Logs to console if True, disables console logging if False
 LOG_CONSOLE = True
- # Places all logs in a rotating file if True
+# Places all logs in a rotating file if True
 LOG_FILE = True
 # IPv4 networks eligible to be synced to NetBox
 IPV4_ALLOWED = ["192.168.0.0/16", "172.16.0.0/12", "10.0.0.0/8"]
- # IPv6 networks eligible to be synced to NetBox
+# IPv6 networks eligible to be synced to NetBox
 IPV6_ALLOWED = ["fe80::/10"]
 
 

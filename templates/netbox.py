@@ -399,7 +399,7 @@ class Templates:
             }
         return remove_empty_fields(obj)
 
-    def vm_interface(self, virtual_machine: str, name: str, iftype: Optional[int] = 0, enabled: Optional[bool] = None,
+    def vm_interface(self, virtual_machine: str, name: str, enabled: Optional[bool] = None,
                      mtu: Optional[int] = None, mac_address: Optional[str] = None, description: Optional[str] = None,
                      mode: Optional[int] = None, untagged_vlan: Optional[int] = None, tagged_vlans: Optional[str] = None,
                      tags: Optional[List[dict]] = None) -> dict:
