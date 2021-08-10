@@ -694,38 +694,64 @@ class VcenterHandler:
                     # If VMware Tools is not detected then we cannot reliably
                     # collect interfaces and IP addresses
                     if obj.guest.toolsRunningStatus == 'guestToolsRunning':
-                        for index, nic in enumerate(obj.guest.net):
-                            # Interfaces
-                            nic_name = f"vNIC{index}"
+                        # If the list of virtual interfaces is not empty, then extract the MAC and IP addresses
+                        if obj.guest.net:
+                            log.debug("Processing the list of interfaces")
+                            for index, nic in enumerate(obj.guest.net):
+                                # Interfaces
+                                nic_name = f"vNIC{index}"
+                                log.debug(
+                                    "Collecting info for virtual interface '%s'.",
+                                    nic_name
+                                )
+                                results["virtual_interfaces"].append(
+                                    nbt.vm_interface(
+                                        virtual_machine=obj_name,
+                                        name=nic_name,
+                                        mac_address=nic.macAddress,
+                                        enabled=nic.connected,
+                                        tags=self.tags
+                                    ))
+                                # IP Addresses
+                                if nic.ipConfig is not None:
+                                    for ip in nic.ipConfig.ipAddress:
+                                        ip_addr = "{}/{}".format(
+                                            ip.ipAddress, ip.prefixLength
+                                        )
+                                        log.debug(
+                                            "Collecting info for IP Address '%s'.",
+                                            ip_addr
+                                        )
+                                        results["ip_addresses"].append(
+                                            nbt.ip_address(
+                                                address=ip_addr,
+                                                virtual_machine=obj_name,
+                                                interface=nic_name,
+                                                tags=self.tags
+                                            ))
+                        elif obj.guest.ipAddress:
                             log.debug(
-                                "Collecting info for virtual interface '%s'.",
-                                nic_name
+                                "The list of interfaces is empty - creating virtual interface vNIC0 "
+                                "and the corresponding IP"
                             )
+                            # Interface
+                            nic_name = "vNIC0"
                             results["virtual_interfaces"].append(
                                 nbt.vm_interface(
                                     virtual_machine=obj_name,
                                     name=nic_name,
-                                    mac_address=nic.macAddress,
-                                    enabled=nic.connected,
+                                    enabled=True,
                                     tags=self.tags
                                 ))
-                            # IP Addresses
-                            if nic.ipConfig is not None:
-                                for ip in nic.ipConfig.ipAddress:
-                                    ip_addr = "{}/{}".format(
-                                        ip.ipAddress, ip.prefixLength
-                                    )
-                                    log.debug(
-                                        "Collecting info for IP Address '%s'.",
-                                        ip_addr
-                                    )
-                                    results["ip_addresses"].append(
-                                        nbt.ip_address(
-                                            address=ip_addr,
-                                            virtual_machine=obj_name,
-                                            interface=nic_name,
-                                            tags=self.tags
-                                        ))
+                            # IP Address
+                            results["ip_addresses"].append(
+                                nbt.ip_address(
+                                    address=obj.guest.ipAddress + '/32',
+                                    virtual_machine=obj_name,
+                                    interface=nic_name,
+                                    tags=self.tags
+                                ))
+
             except AttributeError:
                 log.warning(
                     "Unable to collect necessary data for vCenter %s '%s'"
