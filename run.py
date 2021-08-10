@@ -665,6 +665,12 @@ class VcenterHandler:
                     else:
                         cluster = 'Unclustered'
 
+                    # Status (offline or online)
+                    if (obj.runtime.powerState == "poweredOn") and (obj.runtime.connectionState == "connected"):
+                        status = 1
+                    else:
+                        status = 0
+
                     if vm_family is not None:
                         if "linux" in vm_family:
                             platform = {"name": "Linux"}
@@ -673,9 +679,7 @@ class VcenterHandler:
                     results["virtual_machines"].append(nbt.virtual_machine(
                         name=truncate(obj_name, max_len=64),
                         cluster=cluster,
-                        status=int(
-                            1 if obj.runtime.powerState == "poweredOn" else 0
-                        ),
+                        status=status,
                         role="Server",
                         platform=platform,
                         memory=obj.config.hardware.memoryMB,
