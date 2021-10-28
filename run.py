@@ -223,7 +223,7 @@ def main():
     args = parser.parse_args()
     if args.verbose:
         log.setLevel("DEBUG")
-        log.debug("Log level has been overriden by the --verbose argument.")
+        log.debug("Log level has been overridden by the --verbose argument.")
     for vc_host in settings.VC_HOSTS:
         try:
             start_time = datetime.now()
@@ -262,7 +262,7 @@ def main():
 
 def queue_dns_lookups(ips):
     """
-    Queue handler for reverse DNS lokups.
+    Queue handler for reverse DNS lookups.
 
     :param ips: A list of IP addresses to queue for PTR lookup.
     :type ips: list
@@ -907,7 +907,9 @@ class NetBoxHandler:
         with self.nb_session.get(
                 self.nb_api_url, timeout=10,
                 verify=(not settings.NB_INSECURE_TLS)) as resp:
-            result = float(resp.headers["API-Version"])
+            result = resp.headers.get("API-Version")
+            if not result:
+                result = '3.0'
         log.info("Detected NetBox API v%s.", result)
         return result
 
@@ -1334,7 +1336,7 @@ class NetBoxHandler:
                             "IP %s has passed necessary pre-checks.",
                             ip_addr
                         )
-                        # Update IP address to CIDR notation for comparsion
+                        # Update IP address to CIDR notation for comparison
                         # with existing NetBox objects
                         obj["address"] = format_ip(ip_addr)
                         # Search for parent prefix to assign VRF and tenancy
